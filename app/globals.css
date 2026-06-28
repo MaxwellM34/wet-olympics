@@ -270,6 +270,86 @@ body {
   50% { opacity: 0.5; transform: scale(1.4); }
 }
 
+/* ---------- Mirrored bracket connector lines ---------- */
+/*
+ * Each match cell pairs with its sibling. The "pair-top" gets a connector
+ * going down to meet "pair-bottom"'s connector going up; they meet at the
+ * midpoint, then a single horizontal stub extends inward (toward the final).
+ *
+ *  LEFT side:                              RIGHT side (mirrored):
+ *   ┌────┐ ──┐                                ┌── ┌────┐
+ *   └────┘   │                                │   └────┘
+ *            ├── stub →                ← stub ──┤
+ *   ┌────┐   │                                │   ┌────┐
+ *   └────┘ ──┘                                └── └────┘
+ */
+
+.bracket-match.with-connector {
+  /* Reserve room on the inner edge for the connector lines */
+}
+
+/* LEFT side: connectors emerge from the RIGHT edge of the match */
+.bracket-match.left.with-connector::after {
+  content: "";
+  position: absolute;
+  right: -10px;
+  top: 50%;
+  width: 10px;
+  height: 1px;
+  background: rgba(127, 225, 240, 0.45);
+}
+
+.bracket-match.left.pair-top.with-connector::before {
+  content: "";
+  position: absolute;
+  right: -10px;
+  top: 50%;
+  width: 1px;
+  height: calc(50% + 0.75rem); /* half the gap + half of own height */
+  background: rgba(127, 225, 240, 0.45);
+}
+
+.bracket-match.left.pair-bottom.with-connector::before {
+  content: "";
+  position: absolute;
+  right: -10px;
+  top: calc(-0.75rem);
+  width: 1px;
+  height: calc(50% + 0.75rem);
+  background: rgba(127, 225, 240, 0.45);
+}
+
+/* RIGHT side: connectors emerge from the LEFT edge of the match */
+.bracket-match.right.with-connector::after {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  width: 10px;
+  height: 1px;
+  background: rgba(127, 225, 240, 0.45);
+}
+
+.bracket-match.right.pair-top.with-connector::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  width: 1px;
+  height: calc(50% + 0.75rem);
+  background: rgba(127, 225, 240, 0.45);
+}
+
+.bracket-match.right.pair-bottom.with-connector::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: calc(-0.75rem);
+  width: 1px;
+  height: calc(50% + 0.75rem);
+  background: rgba(127, 225, 240, 0.45);
+}
+
 /* Selection */
 ::selection {
   background: rgba(255, 62, 223, 0.35);
