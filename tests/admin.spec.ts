@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { cleanupTeamsByPrefix, loginAdminViaUI, uniqSuffix } from "./helpers";
+import {
+  cleanupMatchesForGame,
+  cleanupTeamsByPrefix,
+  uniqSuffix,
+} from "./helpers";
 
 const TEAM_PREFIX = "Playwright Test Team";
 
@@ -8,6 +12,9 @@ test.describe("admin flow", () => {
   let teamB = "";
 
   test.beforeAll(async ({ request }) => {
+    // Wipe any leftover beer-pong matches / test teams so this test is idempotent.
+    await cleanupMatchesForGame(request, "beer-pong");
+    await cleanupTeamsByPrefix(request, TEAM_PREFIX);
     // Make sure we start with at least 2 beer-pong teams so the bracket can be generated.
     teamA = `${TEAM_PREFIX} A ${uniqSuffix()}`;
     teamB = `${TEAM_PREFIX} B ${uniqSuffix()}`;
@@ -20,6 +27,7 @@ test.describe("admin flow", () => {
   });
 
   test.afterAll(async ({ request }) => {
+    await cleanupMatchesForGame(request, "beer-pong");
     await cleanupTeamsByPrefix(request, TEAM_PREFIX);
   });
 

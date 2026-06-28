@@ -38,3 +38,17 @@ export async function cleanupTeamsByPrefix(request: APIRequestContext, prefix: s
     }
   }
 }
+
+/** Wipe all matches for a game (admin endpoint). Used to keep bracket-related tests idempotent. */
+export async function cleanupMatchesForGame(request: APIRequestContext, gameSlug: string) {
+  const loginRes = await request.post("/api/admin/login", {
+    data: { user: "admin", pass: "wetparty2026" },
+  });
+  if (!loginRes.ok()) return;
+  const res = await request.get(`/api/matches?game=${gameSlug}`);
+  if (!res.ok()) return;
+  const matches = (await res.json()) as Array<{ id: number }>;
+  for (const m of matches) {
+    await request.delete(`/api/matches/${m.id}`);
+  }
+}
