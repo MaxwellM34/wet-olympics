@@ -5,12 +5,27 @@ import QRFab from "@/components/QRFab";
 import Link from "next/link";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://wet-olympics.vercel.app"),
   title: "Wet Olympics — Full Moon @ Wet Party Hostel",
   description:
     "5-game tournament at Wet Party Hostel, Haad Rin. Pool Volleyball, Beer Pong, Billiards, Table Tennis, Basketball. 100 baht / player. Prizes for the winners.",
+  // app/opengraph-image.tsx generates the og:image automatically (1200x630).
   openGraph: {
     title: "Wet Olympics — Full Moon Tournament",
-    description: "Sign your team up. Win a bucket. Get wet.",
+    description:
+      "5-game tournament @ Wet Party Hostel, Haad Rin. Sign your team up — win a bucket.",
+    url: "https://wet-olympics.vercel.app",
+    siteName: "Wet Olympics",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Wet Olympics — Full Moon Tournament",
+    description: "5-game tournament @ Wet Party Hostel, Haad Rin.",
+  },
+  icons: {
+    icon: "/wet-logo.png",
+    apple: "/wet-logo.png",
   },
 };
 
