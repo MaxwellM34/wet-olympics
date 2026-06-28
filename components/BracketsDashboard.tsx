@@ -15,7 +15,13 @@ interface Snapshot {
 
 const empty: Snapshot = { teams: {}, matches: {}, state: {} };
 
-export default function BracketsDashboard({ initialGame }: { initialGame: string | null }) {
+export default function BracketsDashboard({
+  initialGame,
+  event,
+}: {
+  initialGame: string | null;
+  event?: string | null;
+}) {
   const [active, setActive] = useState<string | null>(initialGame);
   const [data, setData] = useState<Snapshot>(empty);
   const [loading, setLoading] = useState(true);
@@ -25,9 +31,9 @@ export default function BracketsDashboard({ initialGame }: { initialGame: string
     async function load() {
       try {
         const [teams, matches, state] = await Promise.all([
-          api.listTeams().catch(() => [] as TeamRecord[]),
-          api.listMatches().catch(() => [] as MatchRecord[]),
-          api.listGameState().catch(() => [] as GameStateRow[]),
+          api.listTeams(undefined, event ?? undefined).catch(() => [] as TeamRecord[]),
+          api.listMatches(undefined, event ?? undefined).catch(() => [] as MatchRecord[]),
+          api.listGameState(event ?? undefined).catch(() => [] as GameStateRow[]),
         ]);
         if (cancelled) return;
         const byGameT: Record<string, TeamRecord[]> = {};
@@ -47,7 +53,7 @@ export default function BracketsDashboard({ initialGame }: { initialGame: string
       cancelled = true;
       clearInterval(id);
     };
-  }, []);
+  }, [event]);
 
   const statusByGame = useMemo(() => computeStatuses(data.state), [data.state]);
 

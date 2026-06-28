@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 
 interface Props {
@@ -11,6 +11,8 @@ interface Props {
 
 export default function SignupForm({ gameSlug, minPlayers, maxPlayers }: Props) {
   const router = useRouter();
+  const sp = useSearchParams();
+  const eventDate = sp.get("event") || undefined;
   const [teamName, setTeamName] = useState("");
   const [players, setPlayers] = useState<string[]>(
     Array.from({ length: minPlayers }, () => ""),
@@ -40,6 +42,7 @@ export default function SignupForm({ gameSlug, minPlayers, maxPlayers }: Props) 
         game_slug: gameSlug,
         name: teamName.trim(),
         players: clean,
+        event_date: eventDate,
       });
       setDone(true);
       setTeamName("");

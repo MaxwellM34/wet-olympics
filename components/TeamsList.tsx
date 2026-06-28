@@ -1,9 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { api, type TeamRecord } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function TeamsList({ gameSlug }: { gameSlug: string }) {
+  const sp = useSearchParams();
+  const event = sp.get("event") || undefined;
   const [teams, setTeams] = useState<TeamRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -11,7 +14,7 @@ export default function TeamsList({ gameSlug }: { gameSlug: string }) {
     let cancelled = false;
     async function load() {
       try {
-        const t = await api.listTeams(gameSlug);
+        const t = await api.listTeams(gameSlug, event);
         if (!cancelled) setTeams(t);
       } catch {
         // network down, leave list empty
@@ -25,7 +28,7 @@ export default function TeamsList({ gameSlug }: { gameSlug: string }) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [gameSlug]);
+  }, [gameSlug, event]);
 
   return (
     <div className="glass p-5">
