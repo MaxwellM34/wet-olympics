@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { isAdmin } from "@/lib/auth";
 import { getGame } from "@/lib/games";
+import { parseEventDate, ensureEvent } from "@/lib/event";
 import type { GameStateRow } from "@/lib/api";
 
 export const runtime = "nodejs";
@@ -15,6 +16,8 @@ export async function PATCH(req: Request, ctx: { params: { slug: string } }) {
     return NextResponse.json({ error: "unknown game" }, { status: 400 });
   }
   const body = (await req.json()) as Partial<GameStateRow>;
+  const event = parseEventDate(body.event_date);
+  await ensureEvent(event);
   const status =
     body.status_override === null ? null : (body.status_override as string | undefined);
   if (status && !["upcoming", "live", "done"].includes(status)) {
@@ -22,13 +25,13 @@ export async function PATCH(req: Request, ctx: { params: { slug: string } }) {
   }
   const notes = typeof body.notes === "string" ? body.notes : null;
   const [row] = await query<GameStateRow>(
-    `INSERT INTO wet_olympics.games (slug, status_override, notes)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (slug) DO UPDATE
+    `INSERT INTO wet_olympics.games (event_date, slug, status_override, notes)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (event_date, slug) DO UPDATE
        SET status_override = EXCLUDED.status_override,
            notes = EXCLUDED.notes
-     RETURNING slug, status_override, notes`,
-    [ctx.params.slug, status ?? null, notes],
+     RETURNING event_date, slug, status_override, notes`,
+    [event, ctx.params.slug, status ?? null, notes],
   );
   return NextResponse.json(row);
 }

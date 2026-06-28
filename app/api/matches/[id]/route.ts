@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { query, queryOne } from "@/lib/db";
 import { isAdmin } from "@/lib/auth";
 import { propagateWinners } from "@/lib/bracket";
 import type { MatchRecord } from "@/lib/api";
@@ -7,12 +7,6 @@ import type { MatchRecord } from "@/lib/api";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * Admin PATCH on a single match. Every field is independently writable,
- * and any change to team_a_id / team_b_id / winner_id by the admin
- * automatically flips the corresponding `locked_*` flag so the auto-advance
- * routine won't clobber it on the next propagation pass.
- */
 export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   if (!(await isAdmin())) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -57,7 +51,6 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     sets.push(`note = $${i++}`);
     vals.push(body.note);
   }
-  // Explicit unlock flags — admin can clear an override to let auto-advance run again.
   if (typeof body.locked_a === "boolean") {
     sets.push(`locked_a = $${i++}`);
     vals.push(body.locked_a);
@@ -73,12 +66,12 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
 
   if (!sets.length) return NextResponse.json({ error: "nothing to update" }, { status: 400 });
   vals.push(id);
-  const [row] = await query<MatchRecord>(
+  const row = await queryOne<MatchRecord>(
     `UPDATE wet_olympics.matches SET ${sets.join(", ")} WHERE id = $${i} RETURNING *`,
     vals,
   );
   if (row) {
-    await propagateWinners(row.game_slug);
+    await propagateWinners(row.event_date, row.game_slug);
   }
   return NextResponse.json(row);
 }

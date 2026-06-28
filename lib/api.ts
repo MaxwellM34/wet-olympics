@@ -1,9 +1,11 @@
 /**
- * Tiny client helper for the API routes. Used by client components.
+ * Tiny client helper for the API routes. All requests are scoped by event_date
+ * (defaults to today on the server side).
  */
 
 export interface TeamRecord {
   id: number;
+  event_date: string;
   game_slug: string;
   name: string;
   players: string[];
@@ -13,6 +15,7 @@ export interface TeamRecord {
 
 export interface MatchRecord {
   id: number;
+  event_date: string;
   game_slug: string;
   round: number;
   slot: number;
@@ -29,9 +32,17 @@ export interface MatchRecord {
 }
 
 export interface GameStateRow {
+  event_date: string;
   slug: string;
   status_override: "upcoming" | "live" | "done" | null;
   notes: string | null;
+}
+
+export interface EventRecord {
+  event_date: string;
+  name: string | null;
+  schedule_override: Record<string, { start: string; end: string }> | null;
+  order_override: string[] | null;
 }
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
@@ -50,29 +61,42 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+function withEvent(url: string, event?: string): string {
+  if (!event) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}event=${encodeURIComponent(event)}`;
+}
+
 export const api = {
-  listTeams: (game?: string) =>
-    jsonFetch<TeamRecord[]>(`/api/teams${game ? `?game=${game}` : ""}`),
-  createTeam: (data: { game_slug: string; name: string; players: string[] }) =>
+  listTeams: (game?: string, event?: string) =>
+    jsonFetch<TeamRecord[]>(withEvent(`/api/teams${game ? `?game=${game}` : ""}`, event)),
+  createTeam: (data: { game_slug: string; name: string; players: string[]; event_date?: string }) =>
     jsonFetch<TeamRecord>("/api/teams", { method: "POST", body: JSON.stringify(data) }),
   updateTeam: (id: number, patch: Partial<TeamRecord>) =>
     jsonFetch<TeamRecord>(`/api/teams/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   deleteTeam: (id: number) =>
     jsonFetch<{ ok: true }>(`/api/teams/${id}`, { method: "DELETE" }),
 
-  listMatches: (game?: string) =>
-    jsonFetch<MatchRecord[]>(`/api/matches${game ? `?game=${game}` : ""}`),
+  listMatches: (game?: string, event?: string) =>
+    jsonFetch<MatchRecord[]>(withEvent(`/api/matches${game ? `?game=${game}` : ""}`, event)),
   updateMatch: (id: number, patch: Partial<MatchRecord>) =>
     jsonFetch<MatchRecord>(`/api/matches/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
-  generateBracket: (game_slug: string) =>
+  generateBracket: (game_slug: string, event_date?: string) =>
     jsonFetch<{ created: number }>(`/api/matches/generate`, {
       method: "POST",
-      body: JSON.stringify({ game_slug }),
+      body: JSON.stringify({ game_slug, event_date }),
     }),
 
-  listGameState: () => jsonFetch<GameStateRow[]>(`/api/game-state`),
+  listGameState: (event?: string) => jsonFetch<GameStateRow[]>(withEvent(`/api/game-state`, event)),
   setGameState: (slug: string, patch: Partial<GameStateRow>) =>
     jsonFetch<GameStateRow>(`/api/game-state/${slug}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+
+  listEvents: () => jsonFetch<EventRecord[]>(`/api/events`),
+  upsertEvent: (event_date: string, patch: Partial<EventRecord>) =>
+    jsonFetch<EventRecord>(`/api/events/${event_date}`, {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
