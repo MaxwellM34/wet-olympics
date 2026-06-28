@@ -13,15 +13,16 @@ interface Props {
  *
  *   round N  …  R1 (left half)  →  FINAL  ←  R1 (right half)  …  round N
  *
- * The bracket scales to the actual team count: 2 teams → just a final,
- * 3–4 teams → 1 round + final, 5–8 → 2 rounds + final, 9–16 → 3 rounds + final.
+ * Layout: each round column is a vertical stack of "pair" containers.
+ * A pair holds two sibling matches and has a right-edge (left side) or
+ * left-edge (right side) "bracket" border that visually joins the pair
+ * and feeds a short horizontal stub toward the next round.
  *
- * Each round column renders matches evenly spaced. Connector lines are drawn
- * as CSS pseudo-elements on each match cell — a short horizontal stub toward
- * the final, plus a vertical span joining pairs of siblings.
- *
- * If matches contain fewer rounds than expected for the team count (e.g. the
- * admin hasn't generated the bracket yet), we just render what's there.
+ * Bracket auto-scales:
+ *   2 teams → 1 match (final only)
+ *   3–4 teams → 2 R1 + 1 final
+ *   5–8 teams → 4 R1 + 2 SF + 1 final
+ *   9–16 teams → 8 R1 + 4 QF + 2 SF + 1 final
  */
 export default function BracketView({ teams, matches }: Props) {
   const teamById = useMemo(() => {
@@ -30,7 +31,6 @@ export default function BracketView({ teams, matches }: Props) {
     return m;
   }, [teams]);
 
-  // Sort matches by round/slot; total rounds = max round value present.
   const sorted = useMemo(
     () => [...matches].sort((a, b) => a.round - b.round || a.slot - b.slot),
     [matches],
@@ -45,13 +45,15 @@ export default function BracketView({ teams, matches }: Props) {
     byRound.get(m.round)!.push(m);
   }
 
-  // The final match lives at the highest round, slot 0. Single-match
-  // tournaments (2 teams) render as just that final — no mirror needed.
+  // Single-match tournament (2 teams) — just render the final.
   if (totalRounds === 1) {
     return (
       <div className="grid place-items-center py-6">
         <div className="w-full max-w-sm">
-          <MatchCell match={sorted[0]} teamById={teamById} />
+          <p className="text-[10px] uppercase tracking-widest text-shimmer font-extrabold mb-2 text-center">
+            Final
+          </p>
+          <MatchCell match={sorted[0]} teamById={teamById} highlight />
           <Champion winnerId={sorted[0].winner_id} teamById={teamById} />
         </div>
       </div>
@@ -60,47 +62,43 @@ export default function BracketView({ teams, matches }: Props) {
 
   const finalMatch = byRound.get(totalRounds)!.find((m) => m.slot === 0)!;
 
-  // Split rounds 1..N-1 into left half (lower slot range) and right half (upper).
-  // For round r, each side gets half the slots.
-  // We render left-to-right on left side, then mirror on right.
-  // Left side rounds = [1..N-1], slots [0 .. half-1]
-  // Right side rounds = [1..N-1], slots [half .. end]
-  // Final = round N, slot 0
-  const sideRounds = (side: "left" | "right") => {
-    const cols: { round: number; matches: MatchRecord[] }[] = [];
+  // Per side, build round columns. Each column = list of *pairs* of matches.
+  // The matches in each pair are siblings (slot 2k, 2k+1).
+  const sideColumns = (side: "left" | "right") => {
+    const cols: { round: number; pairs: MatchRecord[][] }[] = [];
     for (let r = 1; r < totalRounds; r++) {
       const all = (byRound.get(r) ?? []).sort((a, b) => a.slot - b.slot);
       const half = all.length / 2;
-      const slice =
-        side === "left" ? all.slice(0, half) : all.slice(half).reverse();
-      // We push columns in display order (outermost first → innermost last).
-      // For left: round 1 is outermost (leftmost), round N-1 is closest to final.
-      cols.push({ round: r, matches: slice });
+      const sideMatches =
+        side === "left" ? all.slice(0, half) : all.slice(half);
+      // Group into pairs of 2
+      const pairs: MatchRecord[][] = [];
+      for (let i = 0; i < sideMatches.length; i += 2) {
+        pairs.push([sideMatches[i], sideMatches[i + 1]].filter(Boolean));
+      }
+      cols.push({ round: r, pairs });
     }
     return cols;
   };
 
-  const leftCols = sideRounds("left");
-  const rightCols = sideRounds("right");
+  const leftCols = sideColumns("left");
+  const rightCols = sideColumns("right");
 
   return (
     <div className="overflow-x-auto pb-4 -mx-2 px-2">
-      <div className="flex items-stretch justify-center gap-3 sm:gap-4 min-w-fit">
-        {/* LEFT HALF */}
-        {leftCols.map(({ round, matches }, colIdx) => (
+      <div className="flex items-stretch justify-center gap-0 min-w-fit">
+        {leftCols.map(({ round, pairs }) => (
           <RoundColumn
             key={`l-${round}`}
-            roundIdx={colIdx}
-            totalCols={leftCols.length}
-            matches={matches}
+            pairs={pairs}
             teamById={teamById}
             side="left"
-            label={roundLabel(round, totalRounds, "left")}
+            label={roundLabel(round, totalRounds)}
           />
         ))}
 
-        {/* FINAL + CHAMPION (center) */}
-        <div className="flex flex-col items-center justify-center min-w-[180px] sm:min-w-[220px] px-2">
+        {/* Center column: final + champion */}
+        <div className="flex flex-col items-center justify-center min-w-[180px] sm:min-w-[210px] px-3 py-2 z-10">
           <p className="text-[10px] uppercase tracking-widest text-shimmer font-extrabold mb-2">
             Final
           </p>
@@ -110,61 +108,95 @@ export default function BracketView({ teams, matches }: Props) {
           <Champion winnerId={finalMatch.winner_id} teamById={teamById} />
         </div>
 
-        {/* RIGHT HALF (mirrored: render innermost-first to display reversed) */}
-        {[...rightCols].reverse().map(({ round, matches }, idx) => {
-          const colIdx = rightCols.length - 1 - idx;
-          return (
-            <RoundColumn
-              key={`r-${round}`}
-              roundIdx={colIdx}
-              totalCols={rightCols.length}
-              matches={matches}
-              teamById={teamById}
-              side="right"
-              label={roundLabel(round, totalRounds, "right")}
-            />
-          );
-        })}
+        {/* Right side rendered with reversed column order so outermost is rightmost */}
+        {[...rightCols].reverse().map(({ round, pairs }) => (
+          <RoundColumn
+            key={`r-${round}`}
+            pairs={pairs}
+            teamById={teamById}
+            side="right"
+            label={roundLabel(round, totalRounds)}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
 function RoundColumn({
-  matches,
+  pairs,
   teamById,
   side,
   label,
-  roundIdx,
-  totalCols,
+}: {
+  pairs: MatchRecord[][];
+  teamById: Map<number, TeamRecord>;
+  side: "left" | "right";
+  label: string;
+}) {
+  return (
+    <div className="flex flex-col min-w-[150px] sm:min-w-[180px] py-2 px-1">
+      <p className="text-[10px] uppercase tracking-widest text-wet-200/60 font-bold text-center mb-2">
+        {label}
+      </p>
+      <div className="flex-1 flex flex-col justify-around gap-4">
+        {pairs.map((pair, i) => (
+          <BracketPair key={i} matches={pair} teamById={teamById} side={side} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A pair = the two sibling matches that feed into one next-round match.
+ * Visually: stacked vertically, with a right-edge (or left-edge) "}" border
+ * spanning between the two match midlines, then a short horizontal stub
+ * pointing inward toward the next round.
+ */
+function BracketPair({
+  matches,
+  teamById,
+  side,
 }: {
   matches: MatchRecord[];
   teamById: Map<number, TeamRecord>;
   side: "left" | "right";
-  label: string;
-  roundIdx: number;
-  totalCols: number;
 }) {
-  // First round = full match list, later rounds = fewer matches, larger spacing
-  // We use flex with even distribution to push each pair toward its parent.
+  // Padding on the inner edge reserves space for the connector graphic.
+  const padClass = side === "left" ? "pr-4" : "pl-4";
   return (
-    <div className="flex flex-col min-w-[150px] sm:min-w-[180px] py-2">
-      <p className="text-[10px] uppercase tracking-widest text-wet-200/60 font-bold text-center mb-2">
-        {label}
-      </p>
-      <div className="flex-1 flex flex-col justify-around gap-3">
-        {matches.map((m, i) => (
-          <div
-            key={m.id}
-            className={`bracket-match ${side} ${
-              roundIdx < totalCols - 1 ? "with-connector" : ""
-            } ${i % 2 === 0 ? "pair-top" : "pair-bottom"}`}
-            style={{ position: "relative" }}
-          >
-            <MatchCell match={m} teamById={teamById} />
-          </div>
-        ))}
-      </div>
+    <div className={`relative flex-1 flex flex-col justify-around gap-6 ${padClass}`}>
+      {matches.map((m) => (
+        <MatchCell key={m.id} match={m} teamById={teamById} />
+      ))}
+      {/*
+        Connector bracket "{" (left) or "}" (right) — drawn as a border
+        spanning from first-match midline to second-match midline. Since
+        matches are roughly equal height inside the pair container with
+        justify-around spacing, top/bottom = 25% lands close to each midline.
+      */}
+      {matches.length === 2 && (
+        <>
+          <span
+            aria-hidden
+            className={`absolute pointer-events-none border-wet-300/50 ${
+              side === "left"
+                ? "right-0 border-r-2 border-t-2 border-b-2 rounded-r-md"
+                : "left-0 border-l-2 border-t-2 border-b-2 rounded-l-md"
+            }`}
+            style={{ top: "25%", bottom: "25%", width: "10px" }}
+          />
+          {/* Horizontal stub from the pair's vertical midline outward */}
+          <span
+            aria-hidden
+            className={`absolute pointer-events-none bg-wet-300/50 ${
+              side === "left" ? "right-[-6px]" : "left-[-6px]"
+            }`}
+            style={{ top: "50%", width: "6px", height: "2px" }}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -187,7 +219,7 @@ function MatchCell({
   return (
     <motion.div
       layout
-      className={`rounded-lg border overflow-hidden text-xs ${
+      className={`rounded-lg border overflow-hidden text-xs relative z-10 ${
         live
           ? "border-neon-pink/70 shadow-[0_0_18px_rgba(255,62,223,0.4)] bg-wet-900/70"
           : highlight
@@ -252,7 +284,7 @@ function Champion({
     <div className="mt-4 flex flex-col items-center gap-1">
       <div className="flex items-center gap-2 text-2xl">
         <span>🏅</span>
-        <span className="font-display font-black text-shimmer text-base">
+        <span className="font-display font-black text-shimmer text-base whitespace-nowrap">
           {team ? team.name : "Champion"}
         </span>
         <span>🏅</span>
@@ -266,9 +298,8 @@ function Champion({
   );
 }
 
-function roundLabel(round: number, totalRounds: number, _side: "left" | "right"): string {
-  // Final is the +1 column (rendered in the center). Round 1 = first round of the side.
-  const fromFinal = totalRounds - round; // 1 = SF, 2 = QF, ...
+function roundLabel(round: number, totalRounds: number): string {
+  const fromFinal = totalRounds - round;
   if (fromFinal === 1) return "Semifinals";
   if (fromFinal === 2) return "Quarterfinals";
   if (fromFinal === 3) return "Round of 16";

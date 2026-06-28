@@ -198,7 +198,7 @@ function ZoomedBracket({
     >
       <motion.div
         layoutId={`card-${game.slug}`}
-        className="glass-strong max-w-6xl mx-auto p-6 sm:p-8 relative"
+        className="glass-strong w-full max-w-[1400px] mx-auto p-4 sm:p-6 relative"
         onClick={(e) => e.stopPropagation()}
         transition={{ type: "spring", stiffness: 240, damping: 28 }}
       >

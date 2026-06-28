@@ -272,82 +272,97 @@ body {
 
 /* ---------- Mirrored bracket connector lines ---------- */
 /*
- * Each match cell pairs with its sibling. The "pair-top" gets a connector
- * going down to meet "pair-bottom"'s connector going up; they meet at the
- * midpoint, then a single horizontal stub extends inward (toward the final).
+ * Each match cell pairs with its sibling. Pseudo-elements draw:
+ *   ::after  — horizontal stub extending inward toward the final
+ *   ::before — vertical line joining this match to its sibling (top→mid for
+ *              pair-top matches, bottom→mid for pair-bottom)
  *
- *  LEFT side:                              RIGHT side (mirrored):
- *   ┌────┐ ──┐                                ┌── ┌────┐
- *   └────┘   │                                │   └────┘
- *            ├── stub →                ← stub ──┤
- *   ┌────┐   │                                │   ┌────┐
- *   └────┘ ──┘                                └── └────┘
+ * The vertical line stretches "halfway into the gap" between siblings — we
+ * use a percentage-of-parent trick (.bracket-pair flex container holds the
+ * pair) so it adapts to any spacing.
  */
 
-.bracket-match.with-connector {
-  /* Reserve room on the inner edge for the connector lines */
+.bracket-col {
+  position: relative;
 }
 
-/* LEFT side: connectors emerge from the RIGHT edge of the match */
+.bracket-pair {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  position: relative;
+  gap: 1.5rem;
+  flex: 1;
+}
+
+.bracket-match {
+  position: relative;
+}
+
+/* LEFT side: stub extends to the right (toward final) */
 .bracket-match.left.with-connector::after {
   content: "";
   position: absolute;
-  right: -10px;
+  right: -14px;
   top: 50%;
-  width: 10px;
-  height: 1px;
-  background: rgba(127, 225, 240, 0.45);
+  width: 14px;
+  height: 2px;
+  background: rgba(127, 225, 240, 0.55);
+  z-index: 0;
 }
-
+/* vertical join: pair-top runs DOWN from its mid-line to halfway in the gap */
 .bracket-match.left.pair-top.with-connector::before {
   content: "";
   position: absolute;
-  right: -10px;
+  right: -14px;
   top: 50%;
-  width: 1px;
-  height: calc(50% + 0.75rem); /* half the gap + half of own height */
-  background: rgba(127, 225, 240, 0.45);
+  width: 2px;
+  /* extend down to bottom-of-cell + half-of-gap. gap is 1.5rem (24px) */
+  height: calc(50% + 12px);
+  background: rgba(127, 225, 240, 0.55);
+  z-index: 0;
 }
-
 .bracket-match.left.pair-bottom.with-connector::before {
   content: "";
   position: absolute;
-  right: -10px;
-  top: calc(-0.75rem);
-  width: 1px;
-  height: calc(50% + 0.75rem);
-  background: rgba(127, 225, 240, 0.45);
+  right: -14px;
+  bottom: 50%;
+  width: 2px;
+  height: calc(50% + 12px);
+  background: rgba(127, 225, 240, 0.55);
+  z-index: 0;
 }
 
-/* RIGHT side: connectors emerge from the LEFT edge of the match */
+/* RIGHT side: mirror everything to the left edge */
 .bracket-match.right.with-connector::after {
   content: "";
   position: absolute;
-  left: -10px;
+  left: -14px;
   top: 50%;
-  width: 10px;
-  height: 1px;
-  background: rgba(127, 225, 240, 0.45);
+  width: 14px;
+  height: 2px;
+  background: rgba(127, 225, 240, 0.55);
+  z-index: 0;
 }
-
 .bracket-match.right.pair-top.with-connector::before {
   content: "";
   position: absolute;
-  left: -10px;
+  left: -14px;
   top: 50%;
-  width: 1px;
-  height: calc(50% + 0.75rem);
-  background: rgba(127, 225, 240, 0.45);
+  width: 2px;
+  height: calc(50% + 12px);
+  background: rgba(127, 225, 240, 0.55);
+  z-index: 0;
 }
-
 .bracket-match.right.pair-bottom.with-connector::before {
   content: "";
   position: absolute;
-  left: -10px;
-  top: calc(-0.75rem);
-  width: 1px;
-  height: calc(50% + 0.75rem);
-  background: rgba(127, 225, 240, 0.45);
+  left: -14px;
+  bottom: 50%;
+  width: 2px;
+  height: calc(50% + 12px);
+  background: rgba(127, 225, 240, 0.55);
+  z-index: 0;
 }
 
 /* Selection */
