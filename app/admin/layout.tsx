@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/auth";
 import Link from "next/link";
+import LogoutButton from "@/components/admin/LogoutButton";
 
 export const dynamic = "force-dynamic";
 
@@ -25,21 +25,7 @@ export default async function AdminLayout({
               Schedule
             </Link>
           </div>
-          <form action="/api/admin/login" method="POST" className="inline">
-            <button
-              type="submit"
-              formMethod="DELETE"
-              onClick={(e) => {
-                e.preventDefault();
-                fetch("/api/admin/login", { method: "DELETE" }).then(() => {
-                  window.location.href = "/admin/login";
-                });
-              }}
-              className="btn-ghost !py-1 !px-3 text-xs"
-            >
-              Log out
-            </button>
-          </form>
+          <LogoutButton />
         </nav>
       )}
       {!admin && typeof children === "object" ? (

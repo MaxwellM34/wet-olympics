@@ -16,20 +16,23 @@ export function db(): Pool {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is not set");
   }
-  if (process.env.NODE_ENV === "production") {
-    if (!global._pgPool) {
-      global._pgPool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: process.env.DATABASE_URL.includes("sslmode=") ? undefined : { rejectUnauthorized: false },
-        max: 5,
-      });
-    }
-    return global._pgPool;
-  }
+  // SSL behavior:
+  //   - URL contains sslmode= → let pg parse it from the URL
+  //   - URL points at localhost / 127.0.0.1 (e.g. SSH-tunneled Postgres) → no SSL
+  //   - anything else (remote DB without sslmode) → SSL with relaxed CA
+  const url = process.env.DATABASE_URL;
+  const explicitSsl = url.includes("sslmode=");
+  const isLocal = /@(localhost|127\.0\.0\.1|\[::1\])(:|\/)/.test(url);
+  const sslOpt = explicitSsl
+    ? undefined
+    : isLocal
+      ? false
+      : { rejectUnauthorized: false };
+
   if (!global._pgPool) {
     global._pgPool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DATABASE_URL.includes("sslmode=") ? undefined : { rejectUnauthorized: false },
+      connectionString: url,
+      ssl: sslOpt,
       max: 5,
     });
   }

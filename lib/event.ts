@@ -1,16 +1,12 @@
 import { query } from "./db";
 
 /**
- * Returns today's date in YYYY-MM-DD using the server's local timezone.
- * Vercel functions run in UTC by default — set TZ env var to override
- * (e.g. TZ=Asia/Bangkok for Thailand events).
+ * Returns today's date in YYYY-MM-DD anchored to Asia/Bangkok (where the
+ * hostel actually is). Vercel functions run in UTC; using local would
+ * roll over at the wrong moment.
  */
 export function todayISO(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = (d.getMonth() + 1).toString().padStart(2, "0");
-  const day = d.getDate().toString().padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
 }
 
 /**

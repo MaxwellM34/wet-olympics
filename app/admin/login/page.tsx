@@ -40,10 +40,14 @@ export default function AdminLogin() {
           Host login. Manage teams, brackets, and times.
         </p>
         <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-wet-200/80">
+          <label
+            htmlFor="admin-user"
+            className="text-xs font-bold uppercase tracking-wider text-wet-200/80"
+          >
             Username
           </label>
           <input
+            id="admin-user"
             className="input mt-1"
             value={user}
             onChange={(e) => setUser(e.target.value)}
@@ -52,10 +56,14 @@ export default function AdminLogin() {
           />
         </div>
         <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-wet-200/80">
+          <label
+            htmlFor="admin-pass"
+            className="text-xs font-bold uppercase tracking-wider text-wet-200/80"
+          >
             Password
           </label>
           <input
+            id="admin-pass"
             type="password"
             className="input mt-1"
             value={pass}
