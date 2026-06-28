@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api, type TeamRecord, type MatchRecord, type GameStateRow } from "@/lib/api";
 import { motion } from "framer-motion";
+import BracketView from "@/components/BracketView";
 
 function todayISO(): string {
   const d = new Date();
@@ -278,32 +279,16 @@ function BracketEditor({
   teams: TeamRecord[];
   onChange: () => void;
 }) {
-  const rounds = useMemo(() => {
-    const byRound = new Map<number, MatchRecord[]>();
-    for (const m of matches) {
-      if (!byRound.has(m.round)) byRound.set(m.round, []);
-      byRound.get(m.round)!.push(m);
-    }
-    return [...byRound.entries()]
-      .sort(([a], [b]) => a - b)
-      .map(([r, ms]) => ({ round: r, matches: ms.sort((a, b) => a.slot - b.slot) }));
-  }, [matches]);
-
+  // Reuse the public BracketView's mirrored layout with an editable cell.
   return (
-    <div className="overflow-x-auto pb-3 -mx-2 px-2">
-      <div className="flex gap-4 min-w-fit">
-        {rounds.map(({ round, matches }) => (
-          <div key={round} className="flex flex-col gap-3 min-w-[260px]">
-            <div className="text-[10px] uppercase tracking-widest text-wet-200/60 font-bold text-center">
-              Round {round}
-            </div>
-            {matches.map((m) => (
-              <MatchEditCell key={m.id} match={m} teams={teams} teamById={teamById} onChange={onChange} />
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
+    <BracketView
+      teams={Array.from(teamById.values())}
+      matches={matches}
+      cellMinWidth={260}
+      renderCell={(m) => (
+        <MatchEditCell match={m} teams={teams} teamById={teamById} onChange={onChange} />
+      )}
+    />
   );
 }
 

@@ -6,6 +6,10 @@ import { useMemo } from "react";
 interface Props {
   teams: TeamRecord[];
   matches: MatchRecord[];
+  /** Optional cell renderer override. Admin passes an editable variant. */
+  renderCell?: (m: MatchRecord, ctx: { teamById: Map<number, TeamRecord>; highlight?: boolean }) => React.ReactNode;
+  /** Optional extra column width — admin cells need more room for controls. */
+  cellMinWidth?: number;
 }
 
 /**
@@ -24,7 +28,12 @@ interface Props {
  *   5–8 teams → 4 R1 + 2 SF + 1 final
  *   9–16 teams → 8 R1 + 4 QF + 2 SF + 1 final
  */
-export default function BracketView({ teams, matches }: Props) {
+export default function BracketView({ teams, matches, renderCell, cellMinWidth }: Props) {
+  const Cell = renderCell
+    ? ({ match, teamById, highlight }: { match: MatchRecord; teamById: Map<number, TeamRecord>; highlight?: boolean }) => (
+        <>{renderCell(match, { teamById, highlight })}</>
+      )
+    : MatchCell;
   const teamById = useMemo(() => {
     const m = new Map<number, TeamRecord>();
     teams.forEach((t) => m.set(t.id, t));
@@ -49,11 +58,11 @@ export default function BracketView({ teams, matches }: Props) {
   if (totalRounds === 1) {
     return (
       <div className="grid place-items-center py-6">
-        <div className="w-full max-w-sm">
+        <div className="w-full" style={{ maxWidth: cellMinWidth ? cellMinWidth + 40 : 360 }}>
           <p className="text-[10px] uppercase tracking-widest text-shimmer font-extrabold mb-2 text-center">
             Final
           </p>
-          <MatchCell match={sorted[0]} teamById={teamById} highlight />
+          <Cell match={sorted[0]} teamById={teamById} highlight />
           <Champion winnerId={sorted[0].winner_id} teamById={teamById} />
         </div>
       </div>
@@ -94,16 +103,21 @@ export default function BracketView({ teams, matches }: Props) {
             teamById={teamById}
             side="left"
             label={roundLabel(round, totalRounds)}
+            Cell={Cell}
+            cellMinWidth={cellMinWidth}
           />
         ))}
 
         {/* Center column: final + champion */}
-        <div className="flex flex-col items-center justify-center min-w-[180px] sm:min-w-[210px] px-3 py-2 z-10">
+        <div
+          className="flex flex-col items-center justify-center px-3 py-2 z-10"
+          style={{ minWidth: cellMinWidth ? cellMinWidth + 30 : 210 }}
+        >
           <p className="text-[10px] uppercase tracking-widest text-shimmer font-extrabold mb-2">
             Final
           </p>
           <div className="w-full">
-            <MatchCell match={finalMatch} teamById={teamById} highlight />
+            <Cell match={finalMatch} teamById={teamById} highlight />
           </div>
           <Champion winnerId={finalMatch.winner_id} teamById={teamById} />
         </div>
@@ -116,6 +130,8 @@ export default function BracketView({ teams, matches }: Props) {
             teamById={teamById}
             side="right"
             label={roundLabel(round, totalRounds)}
+            Cell={Cell}
+            cellMinWidth={cellMinWidth}
           />
         ))}
       </div>
@@ -128,20 +144,33 @@ function RoundColumn({
   teamById,
   side,
   label,
+  Cell,
+  cellMinWidth,
 }: {
   pairs: MatchRecord[][];
   teamById: Map<number, TeamRecord>;
   side: "left" | "right";
   label: string;
+  Cell: React.ComponentType<{ match: MatchRecord; teamById: Map<number, TeamRecord>; highlight?: boolean }>;
+  cellMinWidth?: number;
 }) {
   return (
-    <div className="flex flex-col min-w-[150px] sm:min-w-[180px] py-2 px-1">
+    <div
+      className="flex flex-col py-2 px-1"
+      style={{ minWidth: cellMinWidth ?? 180 }}
+    >
       <p className="text-[10px] uppercase tracking-widest text-wet-200/60 font-bold text-center mb-2">
         {label}
       </p>
       <div className="flex-1 flex flex-col justify-around gap-4">
         {pairs.map((pair, i) => (
-          <BracketPair key={i} matches={pair} teamById={teamById} side={side} />
+          <BracketPair
+            key={i}
+            matches={pair}
+            teamById={teamById}
+            side={side}
+            Cell={Cell}
+          />
         ))}
       </div>
     </div>
@@ -158,17 +187,19 @@ function BracketPair({
   matches,
   teamById,
   side,
+  Cell,
 }: {
   matches: MatchRecord[];
   teamById: Map<number, TeamRecord>;
   side: "left" | "right";
+  Cell: React.ComponentType<{ match: MatchRecord; teamById: Map<number, TeamRecord>; highlight?: boolean }>;
 }) {
   // Padding on the inner edge reserves space for the connector graphic.
   const padClass = side === "left" ? "pr-4" : "pl-4";
   return (
     <div className={`relative flex-1 flex flex-col justify-around gap-6 ${padClass}`}>
       {matches.map((m) => (
-        <MatchCell key={m.id} match={m} teamById={teamById} />
+        <Cell key={m.id} match={m} teamById={teamById} />
       ))}
       {/*
         Connector bracket "{" (left) or "}" (right) — drawn as a border
