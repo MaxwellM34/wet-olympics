@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { GAMES, timeLabel, type GameDef } from "@/lib/games";
-import { api, type TeamRecord, type MatchRecord, type GameStateRow } from "@/lib/api";
+import { api, type TeamRecord, type MatchRecord, type GameStateRow, type EventRecord } from "@/lib/api";
+import { effectiveGames } from "@/lib/schedule";
 import BracketView from "./BracketView";
 
 type Status = "upcoming" | "live" | "done";
@@ -25,15 +26,17 @@ export default function BracketsDashboard({
   const [active, setActive] = useState<string | null>(initialGame);
   const [data, setData] = useState<Snapshot>(empty);
   const [loading, setLoading] = useState(true);
+  const [eventRow, setEventRow] = useState<EventRecord | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const [teams, matches, state] = await Promise.all([
+        const [teams, matches, state, events] = await Promise.all([
           api.listTeams(undefined, event ?? undefined).catch(() => [] as TeamRecord[]),
           api.listMatches(undefined, event ?? undefined).catch(() => [] as MatchRecord[]),
           api.listGameState(event ?? undefined).catch(() => [] as GameStateRow[]),
+          api.listEvents().catch(() => [] as EventRecord[]),
         ]);
         if (cancelled) return;
         const byGameT: Record<string, TeamRecord[]> = {};
@@ -42,6 +45,8 @@ export default function BracketsDashboard({
         for (const t of teams) (byGameT[t.game_slug] ??= []).push(t);
         for (const m of matches) (byGameM[m.game_slug] ??= []).push(m);
         for (const s of state) byGameS[s.slug] = s;
+        const targetDate = event ?? new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+        setEventRow(events.find((e) => e.event_date === targetDate) ?? null);
         setData({ teams: byGameT, matches: byGameM, state: byGameS });
       } finally {
         if (!cancelled) setLoading(false);
@@ -55,7 +60,8 @@ export default function BracketsDashboard({
     };
   }, [event]);
 
-  const statusByGame = useMemo(() => computeStatuses(data.state), [data.state]);
+  const games = useMemo(() => effectiveGames(eventRow), [eventRow]);
+  const statusByGame = useMemo(() => computeStatuses(data.state, games), [data.state, games]);
 
   return (
     <div className="space-y-6">
@@ -70,7 +76,7 @@ export default function BracketsDashboard({
 
       <LayoutGroup>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {GAMES.map((g) => {
+          {games.map((g) => {
             const status = statusByGame[g.slug] ?? "upcoming";
             return (
               <BracketCard
@@ -86,9 +92,9 @@ export default function BracketsDashboard({
         </div>
 
         <AnimatePresence>
-          {active && (
+          {active && games.find((g) => g.slug === active) && (
             <ZoomedBracket
-              game={GAMES.find((g) => g.slug === active)!}
+              game={games.find((g) => g.slug === active)!}
               status={statusByGame[active] ?? "upcoming"}
               teams={data.teams[active] ?? []}
               matches={data.matches[active] ?? []}
@@ -244,11 +250,12 @@ function ZoomedBracket({
 
 function computeStatuses(
   state: Record<string, GameStateRow | undefined>,
+  games: GameDef[],
 ): Record<string, Status> {
   const now = new Date();
   const minutes = now.getHours() * 60 + now.getMinutes();
   const out: Record<string, Status> = {};
-  for (const g of GAMES) {
+  for (const g of games) {
     const ovr = state[g.slug]?.status_override;
     if (ovr) {
       out[g.slug] = ovr;

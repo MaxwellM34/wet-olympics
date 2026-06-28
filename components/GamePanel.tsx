@@ -19,6 +19,7 @@ interface Props {
   prizes: string[];
   minPlayers: number;
   maxPlayers: number;
+  defaultOpen?: boolean;
 }
 
 /**
@@ -29,7 +30,7 @@ interface Props {
  * This is the primary signup surface — no page nav required to register.
  */
 export default function GamePanel(p: Props) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(p.defaultOpen ?? false);
   const [status, setStatus] = useState<"upcoming" | "live" | "done">("upcoming");
 
   useEffect(() => {
